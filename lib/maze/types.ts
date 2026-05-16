@@ -49,6 +49,11 @@ export interface SearchResult {
   executionTime: number;
   explorationOrder: Cell[];
   found: boolean;
+  // Parent of each discovered cell, keyed by "r,c". null for the root (start).
+  // Used to draw the search tree built by BFS / DFS / A* / Dijkstra.
+  parents?: Map<string, Cell | null>;
+  // Total cost of the path. For grid mazes with unit edges, equals path.length - 1.
+  pathCost?: number;
 }
 
 export interface EpisodeStat {
@@ -67,7 +72,7 @@ export interface TrainingResult {
   bestReward: number;
 }
 
-export type AlgorithmId = 'astar' | 'dijkstra' | 'qlearning' | 'dqn';
+export type AlgorithmId = 'astar' | 'dijkstra' | 'bfs' | 'dfs' | 'qlearning' | 'dqn';
 
 export interface AlgorithmMeta {
   id: AlgorithmId;
@@ -93,6 +98,22 @@ export const ALGORITHMS: Record<AlgorithmId, AlgorithmMeta> = {
     shortName: 'Dijkstra',
     description: 'Guaranteed shortest path; explores uniformly without heuristic.',
     color: '#14b8a6',
+    type: 'search',
+  },
+  bfs: {
+    id: 'bfs',
+    name: 'Breadth-First Search',
+    shortName: 'BFS',
+    description: 'Layer-by-layer exploration; optimal on unweighted graphs.',
+    color: '#ec4899',
+    type: 'search',
+  },
+  dfs: {
+    id: 'dfs',
+    name: 'Depth-First Search',
+    shortName: 'DFS',
+    description: 'Goes deep before backtracking; finds a path, not always shortest.',
+    color: '#84cc16',
     type: 'search',
   },
   qlearning: {

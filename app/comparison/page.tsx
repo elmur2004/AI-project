@@ -10,6 +10,8 @@ import { generateMaze } from '@/lib/maze/generator';
 import { MazeEnvironment } from '@/lib/maze/environment';
 import { astar } from '@/lib/algorithms/astar';
 import { dijkstra } from '@/lib/algorithms/dijkstra';
+import { bfs } from '@/lib/algorithms/bfs';
+import { dfs } from '@/lib/algorithms/dfs';
 import { QLearningAgent } from '@/lib/algorithms/qlearning';
 import { DQNAgent } from '@/lib/algorithms/dqn';
 import type { AlgorithmId, Cell, ComparisonResult } from '@/lib/maze/types';
@@ -43,6 +45,8 @@ export default function ComparisonPage() {
   const [visibleAlgos, setVisibleAlgos] = useState<Record<AlgorithmId, boolean>>({
     astar: true,
     dijkstra: true,
+    bfs: true,
+    dfs: true,
     qlearning: true,
     dqn: true,
   });
@@ -96,6 +100,36 @@ export default function ComparisonPage() {
       const r = dijkstra(payload.maze, payload.start, payload.goal);
       out.push({
         algorithm: 'dijkstra',
+        pathLength: r.path.length,
+        executionTime: r.executionTime,
+        nodesExplored: r.nodesExplored,
+        pathFound: r.found,
+        path: r.path,
+      });
+    }
+    setResults(out.slice());
+
+    setProgress('Running BFS...');
+    await Promise.resolve();
+    {
+      const r = bfs(payload.maze, payload.start, payload.goal);
+      out.push({
+        algorithm: 'bfs',
+        pathLength: r.path.length,
+        executionTime: r.executionTime,
+        nodesExplored: r.nodesExplored,
+        pathFound: r.found,
+        path: r.path,
+      });
+    }
+    setResults(out.slice());
+
+    setProgress('Running DFS...');
+    await Promise.resolve();
+    {
+      const r = dfs(payload.maze, payload.start, payload.goal);
+      out.push({
+        algorithm: 'dfs',
         pathLength: r.path.length,
         executionTime: r.executionTime,
         nodesExplored: r.nodesExplored,

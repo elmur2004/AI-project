@@ -56,10 +56,12 @@ export function dijkstra(maze: number[][], start: Cell, goal: Cell): SearchResul
   const dist = new Map<string, number>();
   const closed = new Set<string>();
   const explorationOrder: Cell[] = [];
+  const parents = new Map<string, Cell | null>();
   const open = new MinHeap();
 
   open.push({ cell: start, dist: 0, parent: null });
   dist.set(keyOf(start[0], start[1]), 0);
+  parents.set(keyOf(start[0], start[1]), null);
 
   let nodesExplored = 0;
   let foundNode: Node | null = null;
@@ -93,6 +95,7 @@ export function dijkstra(maze: number[][], start: Cell, goal: Cell): SearchResul
       const prev = dist.get(nKey);
       if (prev === undefined || newDist < prev) {
         dist.set(nKey, newDist);
+        parents.set(nKey, current.cell);
         open.push({ cell: [nr, nc], dist: newDist, parent: current });
       }
     }
@@ -112,6 +115,8 @@ export function dijkstra(maze: number[][], start: Cell, goal: Cell): SearchResul
     nodesExplored,
     executionTime: performance.now() - t0,
     explorationOrder,
+    parents,
+    pathCost: path.length > 0 ? path.length - 1 : 0,
     found: !!foundNode,
   };
 }

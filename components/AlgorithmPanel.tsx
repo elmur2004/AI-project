@@ -32,6 +32,32 @@ const PSEUDO: Record<AlgorithmId, string> = {
         prev[v] = u
         open.push((d+1, v))
   return failure`,
+  bfs: `function bfs(start, goal):
+  visited = {start}
+  parent[start] = null
+  queue = [start]                # FIFO
+  while queue not empty:
+    u = queue.dequeue()
+    if u == goal: return reconstruct(parent, u)
+    for v of neighbors(u):
+      if v not in visited:
+        visited.add(v)
+        parent[v] = u
+        queue.enqueue(v)
+  return failure`,
+  dfs: `function dfs(start, goal):
+  visited = {start}
+  parent[start] = null
+  stack = [start]                # LIFO
+  while stack not empty:
+    u = stack.pop()
+    if u == goal: return reconstruct(parent, u)
+    for v of neighbors(u):
+      if v not in visited:
+        visited.add(v)
+        parent[v] = u
+        stack.push(v)
+  return failure`,
   qlearning: `initialize Q[s, a] = 0
 for episode = 1..N:
   s = env.reset()

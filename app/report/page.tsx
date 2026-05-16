@@ -9,6 +9,8 @@ import ComparisonChart from '@/components/ComparisonChart';
 import { generateMaze } from '@/lib/maze/generator';
 import { astar } from '@/lib/algorithms/astar';
 import { dijkstra } from '@/lib/algorithms/dijkstra';
+import { bfs } from '@/lib/algorithms/bfs';
+import { dfs } from '@/lib/algorithms/dfs';
 import { MazeEnvironment } from '@/lib/maze/environment';
 import { QLearningAgent } from '@/lib/algorithms/qlearning';
 import { DQNAgent } from '@/lib/algorithms/dqn';
@@ -50,6 +52,24 @@ export default function ReportPage() {
         nodesExplored: dr.nodesExplored,
         pathFound: dr.found,
         path: dr.path,
+      });
+      const br = bfs(maze, start, goal);
+      out.push({
+        algorithm: 'bfs',
+        pathLength: br.path.length,
+        executionTime: br.executionTime,
+        nodesExplored: br.nodesExplored,
+        pathFound: br.found,
+        path: br.path,
+      });
+      const fr = dfs(maze, start, goal);
+      out.push({
+        algorithm: 'dfs',
+        pathLength: fr.path.length,
+        executionTime: fr.executionTime,
+        nodesExplored: fr.nodesExplored,
+        pathFound: fr.found,
+        path: fr.path,
       });
       if (!cancelled) setResults(out.slice());
 
@@ -271,13 +291,21 @@ export default function ReportPage() {
               differences between search and reinforcement learning become visible
               rather than abstract.
             </p>
-            <p>In this project we compare four algorithms on identical mazes:</p>
+            <p>In this project we compare six algorithms across two maze types:</p>
             <ul className="list-disc pl-6 space-y-1">
-              <li><b>A* Search</b> — informed search with a Manhattan-distance heuristic.</li>
-              <li><b>Dijkstra's algorithm</b> — uninformed uniform-cost search.</li>
+              <li><b>Breadth-First Search (BFS)</b> — fewest-edges path; optimal on unweighted graphs.</li>
+              <li><b>Depth-First Search (DFS)</b> — finds <i>a</i> path by going deep first; not always shortest.</li>
+              <li><b>A* Search</b> — informed search with a Manhattan / Euclidean heuristic.</li>
+              <li><b>Dijkstra's algorithm</b> — uninformed uniform-cost search; lowest-cost path on weighted graphs.</li>
               <li><b>Tabular Q-Learning</b> — model-free RL that learns a Q(s,a) table.</li>
               <li><b>Deep Q-Network (DQN)</b> — function-approximated Q-learning using a small feed-forward neural network.</li>
             </ul>
+            <p>
+              The first four also run on a second maze type — <b>weighted graph mazes</b>
+              — where edges carry explicit costs and the total path cost is computed.
+              This makes the difference between BFS (counts edges) and Dijkstra (sums
+              costs) directly visible.
+            </p>
           </Section>
 
           {/* Literature Review */}
@@ -385,6 +413,76 @@ export default function ReportPage() {
                 edge weights it expands states in BFS-like waves. It guarantees the
                 optimal path but explores more states than A* because it lacks
                 directional bias toward the goal.
+              </p>
+            </SubSection>
+            <SubSection title="3.7 Breadth-First Search (BFS)">
+              <p>
+                BFS uses a FIFO queue and visits all nodes at depth <span className="font-mono">d</span>{' '}
+                before any node at depth <span className="font-mono">d+1</span>. On an
+                unweighted graph it returns the minimum-edge-count path; on a weighted
+                graph it does not — it still returns the fewest-edges path, which may
+                be more expensive than Dijkstra's cheapest path. The search tree built
+                by BFS is the classic level-order traversal, so every cell is
+                discovered by the closest path from the start.
+              </p>
+              <CodeBlock
+                title="BFS"
+                language="pseudocode"
+                code={`queue = [start]
+parent[start] = null
+while queue not empty:
+  u = queue.dequeue()
+  if u == goal: return reconstruct(parent, u)
+  for v of neighbors(u):
+    if v not visited:
+      parent[v] = u
+      queue.enqueue(v)`}
+              />
+            </SubSection>
+            <SubSection title="3.8 Depth-First Search (DFS)">
+              <p>
+                DFS uses a LIFO stack — replacing the queue in BFS with a stack changes
+                the discipline from "broad before deep" to "deep before broad". DFS
+                follows one branch until it dead-ends, backtracks, then tries the next.
+                It is <i>not</i> optimal on either unweighted or weighted graphs; it
+                returns whatever path it happens to find first. Its search tree is
+                deep and narrow, which is visually very different from BFS's wide
+                shallow tree.
+              </p>
+              <CodeBlock
+                title="DFS"
+                language="pseudocode"
+                code={`stack = [start]
+parent[start] = null
+while stack not empty:
+  u = stack.pop()
+  if u == goal: return reconstruct(parent, u)
+  for v of neighbors(u):
+    if v not visited:
+      parent[v] = u
+      stack.push(v)`}
+              />
+            </SubSection>
+            <SubSection title="3.9 Graph &amp; Tree Representations">
+              <p>
+                For BFS, DFS, A*, and Dijkstra we record a <b>parent pointer</b> for
+                every discovered cell. This implicitly defines a <i>search tree</i>{' '}
+                rooted at the start cell. We visualize this tree directly on the
+                interactive maze page — bold edges trace the solution path, lighter
+                edges show the rest of the discovered tree. Differences between
+                algorithms become immediately visible: BFS produces a wide, shallow
+                tree; DFS a tall, narrow one; A* a tree biased toward the goal.
+              </p>
+              <p>
+                We also support a second maze representation: <b>weighted graphs</b>{' '}
+                whose nodes are placed in 2D space and whose edges carry explicit
+                integer costs (proportional to Euclidean distance). On these graphs we
+                run BFS, DFS, Dijkstra, and A* — Dijkstra and A* minimize the total
+                path cost, BFS minimizes the edge count, and DFS finds any path. The
+                <i>/graph</i> page presents the graph visually with edge cost labels
+                and reports the total path cost for each algorithm. A built-in
+                "Romania" preset reproduces the classic Russell &amp; Norvig
+                map-of-Romania example.
               </p>
             </SubSection>
             <SubSection title="3.7 Implementation Stack">

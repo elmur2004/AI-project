@@ -12,8 +12,21 @@ import {
 } from '../lib/maze/types';
 import { astar } from '../lib/algorithms/astar';
 import { dijkstra } from '../lib/algorithms/dijkstra';
+import { bfs } from '../lib/algorithms/bfs';
+import { dfs } from '../lib/algorithms/dfs';
 import { QLearningAgent } from '../lib/algorithms/qlearning';
 import { DQNAgent } from '../lib/algorithms/dqn';
+import {
+  generateGraphMaze,
+  romaniaMap,
+  adjacencyMap,
+} from '../lib/graph/generator';
+import {
+  bfsGraph,
+  dfsGraph,
+  dijkstraGraph,
+  astarGraph,
+} from '../lib/graph/search';
 
 let passed = 0;
 let failed = 0;
@@ -295,7 +308,126 @@ async function round4() {
 }
 
 // =============================================================================
-// Round 5 happens outside this file (dev server smoke test)
+// Round 5 — BFS / DFS correctness on grid mazes
+// =============================================================================
+async function round5() {
+  section('BFS and DFS find a path on hand-built maze');
+  const m5: number[][] = [
+    [0, 0, 0, 1, 0],
+    [1, 1, 0, 1, 0],
+    [0, 0, 0, 1, 0],
+    [0, 1, 1, 1, 0],
+    [0, 0, 0, 0, 0],
+  ];
+  const br = bfs(m5, [0, 0], [4, 4]);
+  const dr = dfs(m5, [0, 0], [4, 4]);
+  ok('BFS found path', br.found);
+  ok('DFS found path', dr.found);
+  ok('BFS path connected', isPathConnected(m5, br.path));
+  ok('DFS path connected', isPathConnected(m5, dr.path));
+
+  section('BFS path length equals A* / Dijkstra (optimal on unweighted)');
+  const ar = astar(m5, [0, 0], [4, 4]);
+  ok(
+    'BFS optimal == A* optimal',
+    br.path.length === ar.path.length,
+    `bfs=${br.path.length}, astar=${ar.path.length}`
+  );
+
+  section('DFS path is valid even if not shortest');
+  ok('DFS path length >= optimal', dr.path.length >= ar.path.length);
+
+  section('All four search algorithms produce a parents map');
+  ok('BFS exposes parents', !!br.parents && br.parents.size > 0);
+  ok('DFS exposes parents', !!dr.parents && dr.parents.size > 0);
+  ok('A* exposes parents', !!ar.parents && ar.parents.size > 0);
+  const dij = dijkstra(m5, [0, 0], [4, 4]);
+  ok('Dijkstra exposes parents', !!dij.parents && dij.parents.size > 0);
+
+  section('BFS / DFS agree on existence across 20 random mazes');
+  let agree = 0;
+  for (let i = 0; i < 20; i++) {
+    const m = generateMaze(15, 15);
+    const b = bfs(m, [0, 0], [14, 14]);
+    const d = dfs(m, [0, 0], [14, 14]);
+    if (b.found && d.found) agree++;
+  }
+  ok('BFS and DFS find path 20/20', agree === 20, `got ${agree}`);
+}
+
+// =============================================================================
+// Round 6 — Graph maze + weighted algorithms
+// =============================================================================
+async function round6() {
+  section('Graph generator produces a connected graph (start -> goal)');
+  for (let i = 0; i < 10; i++) {
+    const g = generateGraphMaze(12, { connectivity: 3 });
+    const r = bfsGraph(g);
+    ok(`graph ${i}: bfs reaches goal`, r.found);
+  }
+
+  section('Romania map preset is well-formed');
+  const romania = romaniaMap();
+  ok('Romania has 20 nodes', romania.nodes.length === 20, `got ${romania.nodes.length}`);
+  ok('Romania start = Arad', romania.startId === 'Arad');
+  ok('Romania goal = Bucharest', romania.goalId === 'Bucharest');
+
+  section('Romania map: classical shortest path Arad -> Bucharest = 418');
+  const dij = dijkstraGraph(romania);
+  ok('Dijkstra finds path', dij.found);
+  ok(
+    `Dijkstra cost = 418 (got ${dij.pathCost})`,
+    dij.pathCost === 418,
+    `got ${dij.pathCost}`
+  );
+  const a = astarGraph(romania);
+  ok('A* finds same optimal cost', a.pathCost === dij.pathCost, `astar=${a.pathCost}`);
+
+  section('On Romania, BFS may find a higher-cost path than Dijkstra (proves weights matter)');
+  const b = bfsGraph(romania);
+  ok('BFS found path', b.found);
+  ok(
+    'BFS cost >= Dijkstra cost (typical for weighted graphs)',
+    b.pathCost >= dij.pathCost,
+    `bfs=${b.pathCost} dij=${dij.pathCost}`
+  );
+
+  section('DFS on Romania finds *a* path');
+  const dfsR = dfsGraph(romania);
+  ok('DFS found path', dfsR.found);
+  // DFS path cost not bounded — just verify it walks valid edges
+  const adj = adjacencyMap(romania.nodes, romania.edges);
+  let valid = true;
+  for (let i = 1; i < dfsR.path.length; i++) {
+    const prev = dfsR.path[i - 1];
+    const cur = dfsR.path[i];
+    if (!(adj.get(prev) ?? []).some((e) => e.to === cur)) {
+      valid = false;
+      break;
+    }
+  }
+  ok('DFS path uses only real edges', valid);
+
+  section('A* on random graphs: cost equals Dijkstra (admissible heuristic)');
+  let match = 0;
+  for (let i = 0; i < 10; i++) {
+    const g = generateGraphMaze(10, { connectivity: 3 });
+    const dr = dijkstraGraph(g);
+    const ar = astarGraph(g);
+    if (dr.found && ar.found && dr.pathCost === ar.pathCost) match++;
+  }
+  ok('A* matches Dijkstra optimal cost 10/10', match === 10, `got ${match}`);
+
+  section('All four graph algorithms expose a parents map');
+  const g = generateGraphMaze(10);
+  ok('bfsGraph parents', bfsGraph(g).parents.size > 0);
+  ok('dfsGraph parents', dfsGraph(g).parents.size > 0);
+  ok('dijkstraGraph parents', dijkstraGraph(g).parents.size > 0);
+  ok('astarGraph parents', astarGraph(g).parents.size > 0);
+}
+
+// =============================================================================
+// Round 5 (browser smoke) happens outside this file
 // =============================================================================
 
 (async () => {
@@ -305,6 +437,8 @@ async function round4() {
   await runRound(2, 'Algorithm correctness', round2);
   await runRound(3, 'Edge cases', round3);
   await runRound(4, 'Environment + reward correctness', round4);
+  await runRound(5, 'BFS / DFS on grid mazes', round5);
+  await runRound(6, 'Graph mazes + weighted algorithms', round6);
 
   console.log('\n================================================');
   console.log(` Summary: ${passed} passed, ${failed} failed`);

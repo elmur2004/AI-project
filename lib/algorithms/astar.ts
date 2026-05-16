@@ -59,10 +59,12 @@ export function astar(maze: number[][], start: Cell, goal: Cell): SearchResult {
   const gScore = new Map<string, number>();
   const closed = new Set<string>();
   const explorationOrder: Cell[] = [];
+  const parents = new Map<string, Cell | null>();
 
   const startKey = keyOf(start[0], start[1]);
   open.push({ cell: start, g: 0, f: manhattan(start, goal), parent: null });
   gScore.set(startKey, 0);
+  parents.set(startKey, null);
 
   let nodesExplored = 0;
   let foundNode: Node | null = null;
@@ -96,6 +98,7 @@ export function astar(maze: number[][], start: Cell, goal: Cell): SearchResult {
       const prevG = gScore.get(nKey);
       if (prevG === undefined || tentativeG < prevG) {
         gScore.set(nKey, tentativeG);
+        parents.set(nKey, current.cell);
         const f = tentativeG + manhattan([nr, nc], goal);
         open.push({ cell: [nr, nc], g: tentativeG, f, parent: current });
       }
@@ -116,6 +119,8 @@ export function astar(maze: number[][], start: Cell, goal: Cell): SearchResult {
     nodesExplored,
     executionTime: performance.now() - t0,
     explorationOrder,
+    parents,
+    pathCost: path.length > 0 ? path.length - 1 : 0,
     found: !!foundNode,
   };
 }

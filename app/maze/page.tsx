@@ -15,8 +15,11 @@ import { PRESETS } from '@/lib/maze/presets';
 import { MazeEnvironment } from '@/lib/maze/environment';
 import { astar } from '@/lib/algorithms/astar';
 import { dijkstra } from '@/lib/algorithms/dijkstra';
+import { bfs } from '@/lib/algorithms/bfs';
+import { dfs } from '@/lib/algorithms/dfs';
 import { QLearningAgent } from '@/lib/algorithms/qlearning';
 import { DQNAgent } from '@/lib/algorithms/dqn';
+import SearchTreeCanvas from '@/components/SearchTreeCanvas';
 import type {
   AlgorithmId,
   Cell,
@@ -70,6 +73,7 @@ export default function MazePage() {
   const [episodeStats, setEpisodeStats] = useState<EpisodeStat[]>([]);
   const [qValueGrid, setQValueGrid] = useState<number[][] | null>(null);
   const [visitGrid, setVisitGrid] = useState<number[][] | null>(null);
+  const [searchParents, setSearchParents] = useState<Map<string, Cell | null> | null>(null);
 
   const [hoverCell, setHoverCell] = useState<Cell | null>(null);
   const [hoverQ, setHoverQ] = useState<number[] | null>(null);
@@ -88,6 +92,7 @@ export default function MazePage() {
     setQValueGrid(null);
     setVisitGrid(null);
     setHoverQ(null);
+    setSearchParents(null);
   }, []);
 
   const onSizeChange = useCallback(
@@ -206,8 +211,20 @@ export default function MazePage() {
     setPathColor(meta.color);
 
     try {
-      if (algorithm === 'astar' || algorithm === 'dijkstra') {
-        const fn = algorithm === 'astar' ? astar : dijkstra;
+      if (
+        algorithm === 'astar' ||
+        algorithm === 'dijkstra' ||
+        algorithm === 'bfs' ||
+        algorithm === 'dfs'
+      ) {
+        const fn =
+          algorithm === 'astar'
+            ? astar
+            : algorithm === 'dijkstra'
+              ? dijkstra
+              : algorithm === 'bfs'
+                ? bfs
+                : dfs;
         const t0 = performance.now();
         const result = fn(maze, start, goal);
         setStats({
@@ -215,6 +232,7 @@ export default function MazePage() {
           nodesExplored: result.nodesExplored,
           bestPathLength: result.path.length,
         });
+        if (result.parents) setSearchParents(result.parents);
         await animateSearch(result, meta.color);
         // Animate agent walking the found path
         if (!stopRef.current && result.found) {
@@ -468,6 +486,27 @@ export default function MazePage() {
                     <HeatmapCanvas values={visitGrid} title="Exploration Heatmap (visits per cell)" />
                   </div>
                 )}
+              </div>
+            )}
+
+            {searchParents && algoMeta.type === 'search' && (
+              <div className="card p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm uppercase tracking-wider text-gray-500">
+                    Search Tree
+                  </h3>
+                  <span className="text-xs text-gray-500">
+                    Each node was discovered from its parent above; bold edges trace
+                    the solution path.
+                  </span>
+                </div>
+                <SearchTreeCanvas
+                  parents={searchParents}
+                  start={start}
+                  goal={goal}
+                  path={solutionPath}
+                  color={algoMeta.color}
+                />
               </div>
             )}
 
